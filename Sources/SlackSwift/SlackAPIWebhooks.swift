@@ -20,8 +20,8 @@ public class SlackAPIWebhooks {
         self.slackDefaultWebhookURL = slackDefaultWebhookURL
     }
     
-    public func post(message: String, webHook: URL? = nil, completionBlock:@escaping () -> Void, errorBlock:@escaping () -> Void) {
-
+    public func post(message unsafeMessage: String, webHook: URL? = nil, completionBlock:@escaping () -> Void, errorBlock:@escaping () -> Void) {
+        let message = removeUnsafeSlackStrings(input: unsafeMessage)
         guard let url = slackDefaultWebhookURL ?? slackDefaultWebhookURL else {
             print("Need a webhook url")
             errorBlock()
@@ -53,6 +53,16 @@ public class SlackAPIWebhooks {
             }
         }
         task.resume()
+    }
+    
+    func removeUnsafeSlackStrings(input: String) -> String {
+        var toRet = input
+        let unsafeStrings = ["\""]
+        for unsafeString in unsafeStrings {
+            toRet = toRet.replacingOccurrences(of: unsafeString, with: "")
+        }
+        
+        return toRet
     }
     
     public func postAndWait(message: String, webHook: URL? = nil) {
