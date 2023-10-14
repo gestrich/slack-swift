@@ -33,7 +33,7 @@ public class SlackAPIWebhooks {
         request.httpMethod = "POST"
         request.httpBody = payloadData
         let session = URLSession.shared
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(withRequest: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SlackAPIWebhooksError.unexpectedURLResponseType

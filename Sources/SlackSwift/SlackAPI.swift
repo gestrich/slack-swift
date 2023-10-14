@@ -32,13 +32,12 @@ public struct SlackAPI {
         request.httpMethod = "GET"
 
         let session = URLSession.shared
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(withRequest: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SlackAPIError.unexpectedURLResponseType
         }
         
-        print(httpResponse.statusCode)
         guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
             
             var responseDescription = ""
@@ -78,7 +77,7 @@ public struct SlackAPI {
         
         request.httpBody = payloadData
         let session = URLSession.shared
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(withRequest: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SlackAPIError.unexpectedURLResponseType

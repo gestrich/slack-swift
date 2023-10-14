@@ -12,12 +12,15 @@ final class slack_swiftTests: XCTestCase {
     
     //Code for poking at API
     
+    /*
     func testPostMessage() async throws {
         //Add your own webhook url below to post to the associated channel.
         let debugURL = URL(string: "")!
         try await SlackAPIWebhooks(slackDefaultWebhookURL: debugURL).post(message: "Test message")
     }
+    */
     
+    /*
     func testGetMessages() async throws {
         //Add your own bearer token and channelName to fetch messages.
         let bearerToken = ""
@@ -27,4 +30,5 @@ final class slack_swiftTests: XCTestCase {
             dump(message)
         }
     }
+     */
 }
