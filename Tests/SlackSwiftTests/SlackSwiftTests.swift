@@ -11,21 +11,20 @@ final class slack_swiftTests: XCTestCase {
     }
     
     //Code for poking at API
-    /*
-    func testPostMessage() throws {
+    
+    func testPostMessage() async throws {
         //Add your own webhook url below to post to the associated channel.
         let debugURL = URL(string: "")!
-        SlackAPIWebhooks(slackDefaultWebhookURL: debugURL).postAndWait(message: "test")
+        try await SlackAPIWebhooks(slackDefaultWebhookURL: debugURL).post(message: "Test message")
     }
     
-    func testGetMessages() throws {
+    func testGetMessages() async throws {
         //Add your own bearer token and channelName to fetch messages.
         let bearerToken = ""
         let channelName = ""
-        let messages = SlackAPI(bearerToken: bearerToken).getMessagesAndWait(channelName: channelName)
-        for message in messages {
+        let messages = try await SlackAPI(bearerToken: bearerToken).getMessages(channelName: channelName)
+        for message in messages.matches {
             dump(message)
         }
     }
-     */
 }

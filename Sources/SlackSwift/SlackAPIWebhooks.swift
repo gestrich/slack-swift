@@ -20,39 +20,38 @@ public class SlackAPIWebhooks {
         self.slackDefaultWebhookURL = slackDefaultWebhookURL
     }
     
-    public func post(message unsafeMessage: String, webHook: URL? = nil, completionBlock:@escaping () -> Void, errorBlock:@escaping () -> Void) {
+    public func post(message unsafeMessage: String, webHook: URL? = nil) async throws {
         let message = removeUnsafeSlackStrings(input: unsafeMessage)
         guard let url = slackDefaultWebhookURL ?? slackDefaultWebhookURL else {
-            print("Need a webhook url")
-            errorBlock()
-            return
+            throw SlackAPIWebhooksError.missingWebHookURL
         }
         
         let payload = "payload={\"text\": \"\(message)\"}"
-        let data = (payload as NSString).data(using: String.Encoding.utf8.rawValue)
+        let payloadData = (payload as NSString).data(using: String.Encoding.utf8.rawValue)
         
-        let request = NSMutableURLRequest(url: url)
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.httpBody = data
+        request.httpBody = payloadData
         let session = URLSession.shared
-        let task = session.dataTask(with: request as URLRequest){
-            (data, response, error) -> Void in
-            if let error = error {
-                print("error: \(error.localizedDescription)")
-                errorBlock()
-            }
-            else if let data = data {
-                
-                if let str = String(data: data, encoding: String.Encoding.utf8) {
-                    completionBlock()
-                    print("\(str)")
-                }
-                else {
-                    print("error")
-                }
-            }
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SlackAPIWebhooksError.unexpectedURLResponseType
         }
-        task.resume()
+        
+        guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            
+            var responseDescription = ""
+            if let str = String(data: data, encoding: String.Encoding.utf8) {
+                responseDescription = str
+            }
+            else {
+                responseDescription = "Slack webhook response data was not a String. Data byte size is \(data.count)"
+            }
+            
+            throw SlackAPIWebhooksError.invalidStatusCode(code: httpResponse.statusCode, bodyMessage: responseDescription)
+        }
+
     }
     
     func removeUnsafeSlackStrings(input: String) -> String {
@@ -65,17 +64,9 @@ public class SlackAPIWebhooks {
         return toRet
     }
     
-    public func postAndWait(message: String, webHook: URL? = nil) {
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        post(message: message, webHook: webHook) {
-            semaphore.signal()
-        } errorBlock: {
-            semaphore.signal()
-        }
-
-        _ = semaphore.wait(timeout: DispatchTime.distantFuture)
+    enum SlackAPIWebhooksError: Error {
+        case missingWebHookURL
+        case unexpectedURLResponseType
+        case invalidStatusCode(code: Int, bodyMessage: String)
     }
-
-    
 }

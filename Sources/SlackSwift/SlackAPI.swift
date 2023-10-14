@@ -21,131 +21,91 @@ public struct SlackAPI {
     //Slack Web API Documentation
     //https://api.slack.com/methods
     
-    public func getMessages(channelName: String, completionBlock:@escaping (_ message: SlackMessagesResponse) -> Void, errorBlock:@escaping () -> Void, page: Int = 1, ascending: Bool = true) {
+    public func getMessages(channelName: String, page: Int = 1, ascending: Bool = true) async throws -> SlackMessagesContainer {
         
         let channelName = channelName
         let urlString = "https://slack.com/api/search.messages?query=in:\(channelName)&sort=timestamp&sort_dir=\(ascending ? "asc" : "desc")&page=\(page)"
-        let request = NSMutableURLRequest(url: URL(string: urlString)!)
+        var request = URLRequest(url: URL(string: urlString)!)
         request.addValue("Bearer \(self.bearerToken)", forHTTPHeaderField: "Authorization")
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.httpMethod = "GET"
 
         let session = URLSession.shared
-        let task = session.dataTask(with: request as URLRequest){
-            (data, response, error) -> Void in
-            guard error == nil else {
-                print("error: \(error!.localizedDescription)")
-                errorBlock()
-                return
-            }
-            
-            guard let data = data else {
-                print("No data")
-                errorBlock()
-                return
-            }
-
-            do {
-                let slackReponse = try JSONDecoder().decode(SlackMessagesResponse.self, from: data)
-                print("\(slackReponse)")
-                completionBlock(slackReponse)
-            } catch let exc {
-                print("error \(exc)")
-                errorBlock()
-                return
-            }
-            
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SlackAPIError.unexpectedURLResponseType
         }
-        task.resume()
+        
+        print(httpResponse.statusCode)
+        guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            
+            var responseDescription = ""
+            if let str = String(data: data, encoding: String.Encoding.utf8) {
+                responseDescription = str
+            }
+            else {
+                responseDescription = "Slack webhook response data was not a String. Data byte size is \(data.count)"
+            }
+            
+            throw SlackAPIError.invalidStatusCode(code: httpResponse.statusCode, bodyMessage: responseDescription)
+        }
+        
+        let messagesResponse = try JSONDecoder().decode(SlackMessagesResponse.self, from: data)
+        if let messagesResponseError = messagesResponse.error, !messagesResponse.ok {
+            throw SlackAPIError.reponseError(error: messagesResponseError)
+        }
+        
+        guard let messagesContainer = messagesResponse.messages else {
+            throw SlackAPIError.responseMissingMessagesContainer
+        }
+        
+        return messagesContainer
     }
     
-    public func getMessagesAndWait(channelName: String, page: Int = 0, ascending: Bool = true) -> [SlackMessage] {
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        var messages =  [SlackMessage]()
-
-        getMessages(channelName: channelName, completionBlock: { resp in
-                
-                print("done")
-                if resp.messages.pagination.page < resp.messages.pagination.page_count {
-                    messages = resp.messages.matches
-                    semaphore.signal() //done
-                } else {
-                    semaphore.signal() //done
-                }
-
-            }, errorBlock: {
-                print("error")
-                semaphore.signal()
-            }, ascending: ascending)
-
-        _ = semaphore.wait(timeout: DispatchTime.distantFuture)
-        
-        return messages
-        
-    }
-    
-    public func deleteMessage(_ slackMessage: SlackMessage, channelID: String, completionBlock:@escaping (_ message: SlackMessage) -> Void, errorBlock:@escaping () -> Void) {
+    public func deleteMessage(_ slackMessage: SlackMessage, channelID: String) async throws -> SlackMessage {
         
         let urlString = "https://slack.com/api/chat.delete"
-        let request = NSMutableURLRequest(url: URL(string: urlString)!)
+        var request = URLRequest(url: URL(string: urlString)!)
         request.addValue("Bearer \(self.bearerToken)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.httpMethod = "POST"
         let payload = ["channel":channelID, "ts": slackMessage.ts]
         
-        guard let data = try? JSONEncoder().encode(payload) else {
-            errorBlock()
-            return
+        let payloadData = try JSONEncoder().encode(payload)
+        
+        request.httpBody = payloadData
+        let session = URLSession.shared
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SlackAPIError.unexpectedURLResponseType
         }
         
-        request.httpBody = data
-        let session = URLSession.shared
-        let task = session.dataTask(with: request as URLRequest){
-            (data, response, error) -> Void in
-            guard error == nil else {
-                print("error: \(error!.localizedDescription)")
-                errorBlock()
-                return
+        guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
+            
+            var responseDescription = ""
+            if let str = String(data: data, encoding: String.Encoding.utf8) {
+                responseDescription = str
+            }
+            else {
+                responseDescription = "Slack webhook response data was not a String. Data byte size is \(data.count)"
             }
             
-            guard let data = data else {
-                print("No data")
-                errorBlock()
-                return
-            }
-
-            do {
-                let slackMessage = try JSONDecoder().decode(SlackMessage.self, from: data)
-                print("\(slackMessage)")
-                completionBlock(slackMessage)
-            } catch let exc {
-                print("error \(exc)")
-                errorBlock()
-                return
-            }
-            
+            throw SlackAPIError.invalidStatusCode(code: httpResponse.statusCode, bodyMessage: responseDescription)
         }
-        task.resume()
+        
+        return try JSONDecoder().decode(SlackMessage.self, from: data)
     }
     
-    public func deleteMessageAndWait(slackMessage: SlackMessage, channelID: String) -> SlackMessage? {
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        var toRet: SlackMessage? = nil
-        deleteMessage(slackMessage, channelID: channelID) { msg in
-            toRet = msg
-            semaphore.signal()
-        } errorBlock: {
-            toRet = nil
-            semaphore.signal()
-        }
-
-        _ = semaphore.wait(timeout: DispatchTime.distantFuture)
-        
-        return toRet
+    enum SlackAPIError: Error {
+        case slackReturnDataNil
+        case unexpectedURLResponseType
+        case invalidStatusCode(code: Int, bodyMessage: String)
+        case reponseError(error: String)
+        case responseMissingMessagesContainer
     }
 }
 
