@@ -9,8 +9,8 @@ import Foundation
 
 
 public struct SlackMessagesResponse: Codable {
-    let ok: Bool
-    let query: String?
-    let messages: SlackMessagesContainer?
-    let error: String?
+    public let ok: Bool
+    public let query: String?
+    public let messages: SlackMessagesContainer?
+    public let error: String?
 }

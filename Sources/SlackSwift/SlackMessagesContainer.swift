@@ -8,6 +8,6 @@
 import Foundation
 
 public struct SlackMessagesContainer: Codable {
-    let matches: [SlackMessage]
-    let pagination: SlackPagination
+    public let matches: [SlackMessage]
+    public let pagination: SlackPagination
 }

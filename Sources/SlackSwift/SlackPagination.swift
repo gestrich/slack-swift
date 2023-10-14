@@ -8,7 +8,7 @@
 import Foundation
 
 public struct SlackPagination: Codable {
-    let page: Int
-    let page_count: Int
+    public let page: Int
+    public let page_count: Int
 }
 
