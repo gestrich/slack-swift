@@ -8,6 +8,7 @@
 import Foundation
 
 public struct SlackMessage: Codable {
+    
     public let ts: String
     public let text: String
     
