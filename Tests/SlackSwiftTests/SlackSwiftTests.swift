@@ -20,15 +20,23 @@ final class slack_swiftTests: XCTestCase {
     }
     */
     
-    /*
-    func testGetMessages() async throws {
-        //Add your own bearer token and channelName to fetch messages.
+    
+    func testDeleteMessages() async throws {
+        //Add your own bearer token and channel info
         let bearerToken = ""
-        let channelName = ""
-        let messages = try await SlackAPI(bearerToken: bearerToken).getMessages(channelName: channelName)
-        for message in messages.matches {
+        let channel = SlackChannel(name: "", id: "")
+        let slackAPI = SlackAPI(bearerToken: bearerToken)
+        
+        let container = try await slackAPI.getMessages(channelName: channel.name, page: 0, ascending: true)
+        let hourThreshold: Int = 24
+        let oldestDate = Date().addingTimeInterval(-TimeInterval(hourThreshold) * 60 * 60)
+        for message in container.matches {
             dump(message)
+            if let messageDate = message.date(), messageDate < oldestDate {
+                let _ = try await slackAPI.deleteMessage(message, channelID: channel.id)
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+            }
         }
     }
-     */
+     
 }

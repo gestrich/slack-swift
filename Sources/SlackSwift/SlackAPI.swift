@@ -63,7 +63,7 @@ public struct SlackAPI {
         return messagesContainer
     }
     
-    public func deleteMessage(_ slackMessage: SlackMessage, channelID: String) async throws -> SlackMessage {
+    public func deleteMessage(_ slackMessage: SlackMessage, channelID: String) async throws {
         
         let urlString = "https://slack.com/api/chat.delete"
         var request = URLRequest(url: URL(string: urlString)!)
@@ -96,7 +96,10 @@ public struct SlackAPI {
             throw SlackAPIError.invalidStatusCode(code: httpResponse.statusCode, bodyMessage: responseDescription)
         }
         
-        return try JSONDecoder().decode(SlackMessage.self, from: data)
+        let messagesDeletionResponse = try JSONDecoder().decode(SlackMessagesDeletionResponse.self, from: data)
+        if let messagesDeletionResponseError = messagesDeletionResponse.error, !messagesDeletionResponse.ok {
+            throw SlackAPIError.reponseError(error: messagesDeletionResponseError)
+        }
     }
     
     enum SlackAPIError: Error {
